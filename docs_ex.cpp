@@ -1,6 +1,6 @@
 /*
-	Docs-Ex -- A simple documentation extractor for C/C++ source files
-	Copyright (C) 2017 Anand Menon
+//!	Docs-Ex -- A simple documentation extractor for C/C++ source files
+//!	Copyright (C) 2017 Anand Menon
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -12,26 +12,73 @@
 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 	GNU General Public License for more details.
 
-	You should have received a copy of the GNU General Public License
-	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//!	You should have received a copy of the GNU General Public License
+//!	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//!
 */
 
+//!Header files:
+//!	<iostream> , for standard I/O streams
 #include <iostream>
+//!	<fstream> for file streams
 #include <fstream>
 
-int extract(char output[], char filename[])
+/***
+
+[FUNCTION]	int extract(char filename[])
+	This function extracts the documentation from inside the file of the given
+	`char filename[]` in the present working directory. It does so by reading
+	each line in the source file and cheecking if each line begins with a
+	designated 'token' for documentation comments. It then writes to the
+	standard output file (if the line was a doc-line).
+
+***/
+int extract(char filename[])
 {
 	std::ifstream infile;
-	std::ofstream outfile;
 	infile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
 	try
 	{
 		infile.open(filename);
+		std::string line;
+	 	bool is_comment = false;
+		while(getline(infile, line))
+		{
+			if(is_comment == true)
+			{
+				if(line.substr(0,4) == "***/")
+				{
+					line.erase(0,4);
+					is_comment = false;
+				}
+				else
+				{
+					std::cout << line << std::endl;
+				}
+			}
+			else
+			{
+				if(line.substr(0,3) == "//!")
+				{
+					line.erase(0,3);
+					std::cout << line << std::endl;
+				}
+				else
+					if(line.substr(0,4) ==  "/***")
+					{
+						line.erase(0,4);
+						std::cout << line << std::endl;
+						is_comment = true;
+					}
+			}
+		}
 	}
 	catch(std::system_error &e)
 	{
-		std::cerr << "There was an error opening the file \""
-		    << filename << "\"" << std::endl << e.what() << std::endl;
+		if(!infile.eof())
+			std::cerr << "There was an error processing the file \""
+			    << filename << "\"" << std::endl << "[Error] "
+			    << e.what() << std::endl;
 	}
 	catch(const char msg[])
 	{
@@ -40,25 +87,40 @@ int extract(char output[], char filename[])
 	catch( ... )
 	{
 		infile.close();
-		outfile.close();
 		return 1;
 	}
 	return 0;
 }
 
+/***
+
+[PROGRAM]	USAGE: docs-ex <file-1> <file-2> ... where <file-*> is a C/C++
+ 		source file.
+
+	This program is to be used to extract documentation lines ("doc-lines")
+	from C/C++ source files and output the exxtracted lines to standard output.
+	The end-user is expected to redirect the output ("piping") to another
+	program, or to a specified output file.
+
+	EXAMPLES:
+		(1)	> docs-ex "source.c" | grep "file"
+		(2)	> docs-ex "main.cpp" > "docs.txt"
+
+***/
 int main(int argc, char* argv[])
 {
-	if(argc < 3)
+	if(argc < 2)
 	{
-		std::cout<<"Usage: \"docs-ex <output-file>"
-		    << "<input-1> <input-2> ... etc.\""<<std::endl;
+		std::cerr<<"Usage: \"docs-ex <input-1> <input-2> ... etc.\""<<std::endl;
 		return 1;
 	}
-	for(int i = 2; i < argc; i++)
+	for(int i = 1; i < argc; i++)
 	{
 		try
 		{
-			extract(argv[1],argv[i]);
+			if(extract(argv[i]))
+				std::cerr << "Error processing file \""
+				    << argv[i] << "\"" << std::endl;
 		}
 		catch(const char msg[])
 		{
